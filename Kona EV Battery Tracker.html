@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Kona EV Battery Tracker</title>
+  
+  <!-- Progressive Web App & iOS Mobile Meta Tags -->
+  <meta name="application-name" content="Kona Battery">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kona Battery">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#080d1a">
+  
+  <!-- Inline SVG PWA Icon & Apple Touch Icon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192' fill='none'%3E%3Crect width='192' height='192' rx='40' fill='%23080d1a'/%3E%3Crect x='10' y='10' width='172' height='172' rx='32' stroke='%2300f2fe' stroke-width='4' stroke-opacity='0.4'/%3E%3Cpath d='M96 28L128 84H102L116 164L64 104H90L96 28Z' fill='%2300f2fe'/%3E%3Cpath d='M50 144C63 156 80 162 96 162C132.45 162 162 132.45 162 96C162 76 153 58 138 46' stroke='%2310b981' stroke-width='8' stroke-linecap='round' stroke-dasharray='10 6'/%3E%3C/svg%3E">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192' fill='none'%3E%3Crect width='192' height='192' rx='40' fill='%23080d1a'/%3E%3Crect x='10' y='10' width='172' height='172' rx='32' stroke='%2300f2fe' stroke-width='4' stroke-opacity='0.4'/%3E%3Cpath d='M96 28L128 84H102L116 164L64 104H90L96 28Z' fill='%2300f2fe'/%3E%3Cpath d='M50 144C63 156 80 162 96 162C132.45 162 162 132.45 162 96C162 76 153 58 138 46' stroke='%2310b981' stroke-width='8' stroke-linecap='round' stroke-dasharray='10 6'/%3E%3C/svg%3E">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            app: {
+              bg: '#080d1a',
+              card: '#0f172a',
+              subtle: '#131e36',
+              border: '#1e293b',
+              neon: '#00f2fe',
+              emerald: '#10b981',
+              amber: '#f59e0b',
+              purple: '#a855f7',
+              rose: '#f43f5e'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Safe Area insets for iPhone notch and home navigation indicator */
+    body {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    
+    /* Touch optimization */
+    input, select, textarea, button {
+      user-select: auto;
+    }
+
+    .glass-card {
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .glass-nav {
+      background: rgba(8, 13, 26, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Glow utilities */
+    .glow-cyan {
+      box-shadow: 0 0 25px -4px rgba(0, 242, 254, 0.35);
+    }
+    .glow-emerald {
+      box-shadow: 0 0 25px -4px rgba(16, 185, 129, 0.35);
+    }
+
+    /* Custom thin scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-[#080d1a] text-slate-100 min-h-screen flex flex-col font-sans selection:bg-cyan-500 selection:text-black antialiased overflow-x-hidden">
+
+  <!-- ==================== TOP MOBILE APP BAR ==================== -->
+  <header class="sticky top-0 z-40 bg-[#080d1a]/95 backdrop-blur-md border-b border-slate-800/80 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 font-black shadow-md shadow-cyan-500/20 active:scale-95 transition">
+        <i data-lucide="zap" class="w-5 h-5 text-slate-950 stroke-[2.5]"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-sm font-black tracking-tight text-white uppercase">Kona EV 2020</span>
+          <span id="pwa-status-badge" class="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800/80 font-bold">PWA</span>
+        </div>
+        <p class="text-[10px] text-slate-400 font-medium">Ultimate • 64 kWh Usable (NCM 622)</p>
+      </div>
+    </div>
+
+    <!-- Right Header Actions -->
+    <div class="flex items-center space-x-1.5">
+      <button id="btn-header-install" class="hidden px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 text-xs font-bold flex items-center gap-1 shadow-md shadow-cyan-500/20 active:scale-95 transition">
+        <i data-lucide="download" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+        <span>Install App</span>
+      </button>
+
+      <button id="btn-open-settings" class="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white active:scale-95 transition" aria-label="Settings and Data Sync">
+        <i data-lucide="settings-2" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== INSTALL APP PROMPT BANNER ==================== -->
+  <div id="install-banner" class="hidden bg-gradient-to-r from-cyan-950/90 via-slate-900 to-blue-950/90 border-b border-cyan-500/30 px-4 py-2.5 flex items-center justify-between text-xs transition-all">
+    <div class="flex items-center space-x-2.5 truncate mr-2">
+      <div class="w-7 h-7 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+        <i data-lucide="smartphone" class="w-4 h-4"></i>
+      </div>
+      <div class="truncate">
+        <p class="font-bold text-white text-[11px] truncate">Install Kona Tracker to Home Screen</p>
+        <p class="text-[10px] text-cyan-300/80 truncate">Works offline like a native app on your phone</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5 shrink-0">
+      <button id="btn-banner-action" class="px-2.5 py-1 bg-cyan-500 text-slate-950 font-bold text-[11px] rounded-lg active:scale-95 transition">
+        Install
+      </button>
+      <button id="btn-banner-dismiss" class="p-1 text-slate-400 hover:text-white rounded" aria-label="Dismiss">
+        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN CONTENT (TABS WRAPPER) ==================== -->
+  <main class="flex-1 w-full max-w-2xl mx-auto px-3.5 sm:px-6 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] space-y-5">
+
+    <!-- TAB 1: DASHBOARD VIEW -->
+    <section id="view-dashboard" class="space-y-4">
+
+      <!-- HERO STATUS CARD -->
+      <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-[#0c162d] to-slate-950 border border-slate-800 p-4 sm:p-5 shadow-xl">
+        <div class="absolute -right-8 -bottom-8 w-36 h-36 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none"></div>
+        <div class="absolute -left-8 -top-8 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-[11px] font-mono uppercase tracking-wider text-cyan-400 font-bold flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            Current Battery Health
+          </span>
+          <span id="dash-last-date" class="text-[11px] font-mono text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-full border border-slate-700/60">Log 9</span>
+        </div>
+
+        <div class="flex items-end justify-between">
+          <div>
+            <div class="flex items-baseline gap-1">
+              <span id="dash-soh" class="text-4xl sm:text-5xl font-black font-mono tracking-tight text-white">91.1</span>
+              <span class="text-xl sm:text-2xl font-bold font-mono text-cyan-400">%</span>
+              <span class="text-xs text-slate-400 font-mono ml-2 font-medium">SoH</span>
+            </div>
+            <p class="text-xs text-slate-300 mt-1 font-medium">
+              Effective Usable: <strong id="dash-usable" class="text-emerald-400 font-mono font-bold">58.30 kWh</strong>
+              <span class="text-slate-400 text-[10px]">/ 64 kWh</span>
+            </p>
+          </div>
+
+          <!-- Circular Wear Radial Mini Badge -->
+          <div class="text-right">
+            <div class="inline-flex flex-col items-end bg-slate-950/70 p-2.5 rounded-xl border border-slate-800">
+              <span class="text-[9px] uppercase tracking-wider text-slate-400">Total Wear</span>
+              <span id="dash-wear" class="text-base font-bold font-mono text-rose-400">-8.9%</span>
+              <span id="dash-loss-kwh" class="text-[10px] text-slate-400 font-mono">-5.70 kWh</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Pack Status Indicator Pill -->
+        <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+          <div class="flex items-center gap-1.5 text-slate-300">
+            <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i>
+            <span>96s Cell Series Deviation:</span>
+            <strong id="dash-celldev" class="text-emerald-400 font-mono">0.00 V</strong>
+          </div>
+          <span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 font-mono text-[10px] border border-emerald-800/60 font-semibold">Balanced</span>
+        </div>
+      </div>
+
+      <!-- 4-TILE PRIMARY TELEMETRY GRID -->
+      <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
+        <!-- Tile 1: Odometer -->
+        <div class="glass-card rounded-xl p-3.5 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-slate-400 mb-1">
+            <span class="text-[11px] font-medium">Odometer</span>
+            <i data-lucide="gauge" class="w-3.5 h-3.5 text-blue-400"></i>
+          </div>
+          <div class="text-xl sm:text-2xl font-bold font-mono text-white tracking-tight" id="dash-odometer">
+            176,874 <span class="text-xs font-normal text-slate-400">km</span>
+          </div>
+          <span class="text-[10px] font-mono text-cyan-300 mt-1" id="dash-tracked-km">+13,305 km logged</span>
+        </div>
+
+        <!-- Tile 2: DCFC Ratio -->
+        <div class="glass-card rounded-xl p-3.5 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-slate-400 mb-1">
+            <span class="text-[11px] font-medium">DC Fast Ratio</span>
+            <i data-lucide="fuel" class="w-3.5 h-3.5 text-amber-400"></i>
+          </div>
+          <div class="text-xl sm:text-2xl font-bold font-mono text-amber-400 tracking-tight" id="dash-dcfc-pct">
+            5.25%
+          </div>
+          <span class="text-[10px] font-mono text-slate-400 mt-1" id="dash-dcfc-sub">21 DC / 985 AC</span>
+        </div>
+
+        <!-- Tile 3: Degradation Velocity -->
+        <div class="glass-card rounded-xl p-3.5 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-slate-400 mb-1">
+            <span class="text-[11px] font-medium">Wear Pace</span>
+            <i data-lucide="trending-down" class="w-3.5 h-3.5 text-rose-400"></i>
+          </div>
+          <div class="text-xl sm:text-2xl font-bold font-mono text-white tracking-tight" id="dash-deg-rate">
+            0.50%
+          </div>
+          <span class="text-[10px] font-mono text-slate-400 mt-1">Per 10,000 km</span>
+        </div>
+
+        <!-- Tile 4: Isolation Resistance -->
+        <div class="glass-card rounded-xl p-3.5 flex flex-col justify-between">
+          <div class="flex items-center justify-between text-slate-400 mb-1">
+            <span class="text-[11px] font-medium">HV Isolation</span>
+            <i data-lucide="lock" class="w-3.5 h-3.5 text-purple-400"></i>
+          </div>
+          <div class="text-xl sm:text-2xl font-bold font-mono text-purple-300 tracking-tight" id="dash-iso">
+            3,000 <span class="text-xs font-normal text-slate-400">kΩ</span>
+          </div>
+          <span class="text-[10px] font-mono text-emerald-400 mt-1">Max Saturation</span>
+        </div>
+      </div>
+
+      <!-- GROSS VS USABLE OVERHEAD BUFFER BREAKDOWN -->
+      <div class="glass-card rounded-2xl p-4 border border-slate-800 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+            <h3 class="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">Pack Capacity Architecture</h3>
+          </div>
+          <button id="btn-quick-buffer-modal" class="text-[11px] font-medium text-cyan-400 hover:underline flex items-center gap-1">
+            <span>Why 9.2 kWh?</span>
+            <i data-lucide="info" class="w-3 h-3"></i>
+          </button>
+        </div>
+
+        <!-- Visual Capacity Progress Bar -->
+        <div class="w-full h-6 bg-slate-950 rounded-xl overflow-hidden flex border border-slate-800 shadow-inner">
+          <div id="dash-bar-usable" class="bg-gradient-to-r from-cyan-500 to-emerald-400 h-full flex items-center px-2 text-[10px] font-bold text-slate-950 truncate transition-all duration-500" style="width: 86.37%;" title="Usable Driving Capacity">
+            58.30 kWh Usable
+          </div>
+          <div id="dash-bar-buffer" class="bg-slate-700/80 h-full flex items-center justify-center px-1 text-[9px] font-mono text-slate-300 transition-all duration-500" style="width: 4.72%;" title="Factory Safety Buffer">
+            3.2k
+          </div>
+          <div id="dash-bar-wear" class="bg-rose-950 border-l border-rose-800/80 h-full flex items-center justify-center px-1 text-[9px] font-mono text-rose-300 transition-all duration-500" style="width: 8.91%;" title="Total Degraded Capacity">
+            6.0k
+          </div>
+        </div>
+
+        <div class="flex justify-between items-center text-[10px] font-mono text-slate-400 pt-1 border-t border-slate-800/60">
+          <span>Factory Usable: <strong class="text-slate-200">64.0 kWh</strong></span>
+          <span>Gross Physical: <strong class="text-cyan-300">~67.5 kWh</strong></span>
+        </div>
+      </div>
+
+      <!-- QUICK SHORTCUT / RECENT LOG HIGHLIGHT -->
+      <div class="glass-card rounded-2xl p-4 border border-slate-800 flex items-center justify-between">
+        <div class="space-y-0.5">
+          <span class="text-[10px] uppercase font-mono tracking-wider text-slate-400">Latest Car Scanner Snapshot</span>
+          <div class="text-xs font-bold text-white flex items-center gap-1.5" id="dash-recent-title">
+            Log 9 - Cold Full Charge (176,874 km)
+          </div>
+          <p class="text-[11px] text-slate-400 truncate max-w-[240px]" id="dash-recent-notes">Resting 100% display charge. Cold autumn calibration.</p>
+        </div>
+        <button id="dash-btn-view-logs" class="p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-cyan-400 border border-slate-700 text-xs font-semibold flex items-center gap-1 active:scale-95 transition shrink-0">
+          <span>Logbook</span>
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+    </section>
+
+    <!-- TAB 2: TREND / SOH EVOLUTION VIEW -->
+    <section id="view-trend" class="hidden space-y-4">
+      <div class="glass-card rounded-2xl p-4 sm:p-5 border border-slate-800 space-y-4">
+        
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+              <i data-lucide="trending-down" class="w-4 h-4 text-cyan-400"></i>
+              <span>SoH Degradation Trajectory</span>
+            </h3>
+            <p class="text-[11px] text-slate-400">Tracks BMS step-downs and fleet aging model</p>
+          </div>
+
+          <!-- X-Axis Switcher -->
+          <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 self-start sm:self-auto">
+            <button id="pwa-toggle-odo" class="px-2.5 py-1 text-[11px] rounded-lg font-bold bg-cyan-500 text-slate-950 transition">Odometer</button>
+            <button id="pwa-toggle-date" class="px-2.5 py-1 text-[11px] rounded-lg font-medium text-slate-400 hover:text-white transition">Date</button>
+            <button id="pwa-toggle-hours" class="px-2.5 py-1 text-[11px] rounded-lg font-medium text-slate-400 hover:text-white transition">Hours</button>
+          </div>
+        </div>
+
+        <!-- Chart Canvas -->
+        <div class="relative w-full h-[280px] sm:h-[320px]">
+          <canvas id="pwa-chart-soh"></canvas>
+        </div>
+
+        <!-- Trend Key Observations -->
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-xs">
+          <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+            <span class="text-slate-400 text-[10px] block uppercase font-mono">Longevity to 80% SoH</span>
+            <span id="trend-80k" class="text-sm font-bold font-mono text-cyan-300">~497,000 km</span>
+          </div>
+          <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+            <span class="text-slate-400 text-[10px] block uppercase font-mono">Pack Aging Advantage</span>
+            <span class="text-sm font-bold font-mono text-emerald-400">+14% vs Fleet Avg</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CHARGING DISTRIBUTION PIE/STATS -->
+      <div class="glass-card rounded-2xl p-4 sm:p-5 border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+            <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-400"></i>
+            <span>Energy Input Breakdown</span>
+          </h3>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800/60">Gentle L2 AC Pack</span>
+        </div>
+
+        <div class="relative w-full h-[200px]">
+          <canvas id="pwa-chart-charging"></canvas>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+          <div class="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+            <span class="text-slate-400 text-[10px] block">Level 2 AC Input</span>
+            <span class="font-bold text-cyan-300 text-xs" id="trend-ac-kwh">9,903 kWh (985 ses)</span>
+          </div>
+          <div class="bg-slate-900/50 p-2.5 rounded-xl border border-slate-800">
+            <span class="text-slate-400 text-[10px] block">DC Fast Charge</span>
+            <span class="font-bold text-amber-300 text-xs" id="trend-dc-kwh">549 kWh (21 ses)</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: QUEBEC RANGE CALCULATOR VIEW -->
+    <section id="view-range" class="hidden space-y-4">
+      <div class="glass-card rounded-2xl p-4 sm:p-5 border border-slate-800 space-y-4">
+        
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+              <i data-lucide="thermometer-snowflake" class="w-4 h-4 text-cyan-400"></i>
+              <span>Quebec Winter Range Calculator</span>
+            </h3>
+            <p class="text-[11px] text-slate-400">Calculated on current <strong class="text-cyan-300 font-mono" id="calc-curr-usable">58.30 kWh</strong> usable capacity</p>
+          </div>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900 text-slate-400 border border-slate-800">Physics Model</span>
+        </div>
+
+        <!-- RANGE RESULT HERO GAUGE -->
+        <div class="bg-gradient-to-br from-slate-950 via-[#0a152d] to-slate-900 p-5 rounded-2xl border border-slate-800 text-center relative overflow-hidden">
+          <span class="text-[10px] font-mono uppercase tracking-widest text-slate-400">Estimated Highway Range</span>
+          <div class="my-2">
+            <span id="range-result-km" class="text-5xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400">
+              246
+            </span>
+            <span class="text-lg font-bold font-mono text-slate-400 ml-1">km</span>
+          </div>
+          <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-slate-900/80 border border-slate-700/80 text-[11px] font-mono">
+            <span class="text-slate-400">Summer 20°C Baseline:</span>
+            <span class="text-emerald-400 font-bold" id="range-summer-km">343 km</span>
+          </div>
+        </div>
+
+        <!-- SLIDER 1: TEMPERATURE -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between items-center text-xs font-medium">
+            <span class="text-slate-300 flex items-center gap-1">
+              <i data-lucide="thermometer" class="w-3.5 h-3.5 text-cyan-400"></i> Ambient Temperature
+            </span>
+            <span id="label-slider-temp" class="font-mono font-bold text-cyan-400 text-xs">-10°C</span>
+          </div>
+          <input type="range" id="slider-temp" min="-25" max="30" step="1" value="-10" 
+            class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+          <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+            <span>-25°C Deep Freeze</span>
+            <span>0°C Freezing</span>
+            <span>+20°C Mild</span>
+          </div>
+        </div>
+
+        <!-- SLIDER 2: SPEED -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between items-center text-xs font-medium">
+            <span class="text-slate-300 flex items-center gap-1">
+              <i data-lucide="gauge" class="w-3.5 h-3.5 text-blue-400"></i> Cruising Speed
+            </span>
+            <span id="label-slider-speed" class="font-mono font-bold text-blue-400 text-xs">110 km/h</span>
+          </div>
+          <input type="range" id="slider-speed" min="80" max="130" step="5" value="110" 
+            class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-400">
+          <div class="flex justify-between text-[10px] text-slate-400 font-mono">
+            <span>80 km/h</span>
+            <span>100 km/h</span>
+            <span>110 km/h (Highway)</span>
+            <span>130 km/h</span>
+          </div>
+        </div>
+
+        <!-- SOC WINDOW SELECTORS -->
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-[10px] uppercase font-mono text-slate-400 mb-1">Departure SoC</label>
+            <select id="calc-soc-start" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-xs font-mono text-white">
+              <option value="100" selected>100% Full</option>
+              <option value="90">90%</option>
+              <option value="80">80% Daily</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] uppercase font-mono text-slate-400 mb-1">Arrival Buffer</label>
+            <select id="calc-soc-end" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-2 text-xs font-mono text-white">
+              <option value="15">15% Safe</option>
+              <option value="10" selected>10% Typical</option>
+              <option value="5">5% Deep</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- CLIMATE CONTROL -->
+        <div class="space-y-1.5">
+          <label class="block text-[10px] uppercase font-mono text-slate-400">Heat Pump & Cabin Climate</label>
+          <div class="grid grid-cols-3 gap-1.5">
+            <button data-calc-climate="eco" class="btn-calc-climate py-1.5 px-2 rounded-xl text-xs font-medium border border-slate-700 bg-slate-900 text-slate-300">Eco 20°C</button>
+            <button data-calc-climate="normal" class="btn-calc-climate active py-1.5 px-2 rounded-xl text-xs font-bold border border-cyan-500 bg-cyan-950 text-cyan-300">Comfort 22°C</button>
+            <button data-calc-climate="off" class="btn-calc-climate py-1.5 px-2 rounded-xl text-xs font-medium border border-slate-700 bg-slate-900 text-slate-300">HVAC Off</button>
+          </div>
+        </div>
+
+        <!-- TRIP METRICS GRID -->
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-[11px] font-mono">
+          <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+            <span class="text-slate-400 text-[9px] block">Consumption</span>
+            <span id="range-cons" class="font-bold text-cyan-300">21.3 kWh/100km</span>
+          </div>
+          <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+            <span class="text-slate-400 text-[9px] block">Dispatchable</span>
+            <span id="range-dispatch" class="font-bold text-emerald-300">52.47 kWh</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 4: LOGBOOK MASTER VIEW -->
+    <section id="view-logbook" class="hidden space-y-4">
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+            <i data-lucide="clipboard-list" class="w-4 h-4 text-cyan-400"></i>
+            <span>OBD2 Milestones Logbook</span>
+          </h3>
+          <p class="text-[11px] text-slate-400">All 9 recorded Car Scanner captures</p>
+        </div>
+        <button id="btn-open-add-from-logbook" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-bold text-xs flex items-center gap-1 active:scale-95 transition shadow-sm">
+          <i data-lucide="plus" class="w-3.5 h-3.5 stroke-[3]"></i>
+          <span>Add</span>
+        </button>
+      </div>
+
+      <!-- Search Filter -->
+      <div class="relative">
+        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3"></i>
+        <input type="text" id="logbook-search" placeholder="Search milestone, odometer, or notes..." 
+          class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500">
+      </div>
+
+      <!-- Logs Container List -->
+      <div id="logbook-list" class="space-y-2.5">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== MOBILE BOTTOM NAVIGATION BAR ==================== -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 glass-nav px-2 sm:px-6 py-2 flex items-center justify-around shadow-2xl">
+    
+    <!-- Tab 1: Dashboard -->
+    <button data-tab="view-dashboard" class="nav-tab-btn active flex flex-col items-center justify-center w-14 py-1 text-cyan-400 transition-all active:scale-95">
+      <i data-lucide="gauge" class="w-5 h-5 stroke-[2]"></i>
+      <span class="text-[10px] font-bold mt-1">Status</span>
+    </button>
+
+    <!-- Tab 2: Trend -->
+    <button data-tab="view-trend" class="nav-tab-btn flex flex-col items-center justify-center w-14 py-1 text-slate-400 hover:text-slate-200 transition-all active:scale-95">
+      <i data-lucide="trending-down" class="w-5 h-5 stroke-[2]"></i>
+      <span class="text-[10px] font-medium mt-1">Trend</span>
+    </button>
+
+    <!-- Elevated Add Log Button (+) -->
+    <button id="nav-btn-add" class="flex flex-col items-center justify-center -mt-5 transition-all active:scale-90" aria-label="Add OBD2 Log">
+      <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-400 via-cyan-500 to-blue-600 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-cyan-500/40 border-2 border-[#080d1a]">
+        <i data-lucide="plus" class="w-6 h-6 stroke-[3] text-slate-950"></i>
+      </div>
+      <span class="text-[9px] font-extrabold text-cyan-300 mt-0.5 tracking-tight">Add Read</span>
+    </button>
+
+    <!-- Tab 3: Range Calc -->
+    <button data-tab="view-range" class="nav-tab-btn flex flex-col items-center justify-center w-14 py-1 text-slate-400 hover:text-slate-200 transition-all active:scale-95">
+      <i data-lucide="thermometer-snowflake" class="w-5 h-5 stroke-[2]"></i>
+      <span class="text-[10px] font-medium mt-1">Range</span>
+    </button>
+
+    <!-- Tab 4: Logbook -->
+    <button data-tab="view-logbook" class="nav-tab-btn flex flex-col items-center justify-center w-14 py-1 text-slate-400 hover:text-slate-200 transition-all active:scale-95">
+      <i data-lucide="clipboard-list" class="w-5 h-5 stroke-[2]"></i>
+      <span class="text-[10px] font-medium mt-1">Logs</span>
+    </button>
+
+  </nav>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- MODAL 1: ADD NEW OBD2 LOG -->
+  <div id="modal-add-log" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4 transition-opacity">
+    <div class="bg-slate-900 border-t sm:border border-slate-700 w-full max-w-lg rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 max-h-[85vh] overflow-y-auto">
+      
+      <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-1.5">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-cyan-400"></i>
+            <span>Log Car Scanner Snapshot</span>
+          </h3>
+          <p class="text-[11px] text-slate-400">Enter metrics from your latest Car Scanner screen</p>
+        </div>
+        <button id="btn-close-add-modal" class="p-1 text-slate-400 hover:text-white rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-add-log" class="mt-4 space-y-3.5 text-xs">
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Milestone Tag *</label>
+            <input type="text" id="input-title" required placeholder="Log 10 - Winter Check" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono focus:border-cyan-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Date *</label>
+            <input type="date" id="input-date" required 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono focus:border-cyan-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Odometer (km) *</label>
+            <input type="number" id="input-odo" required placeholder="177500" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono focus:border-cyan-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">State of Health SoH (%) *</label>
+            <input type="number" step="0.1" id="input-soh" required placeholder="91.0" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono focus:border-cyan-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-slate-400 text-[10px] uppercase font-mono mb-1">Operating Hours</label>
+            <input type="number" step="0.01" id="input-hours" placeholder="7520.5" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-400 text-[10px] uppercase font-mono mb-1">BMS SoC (%)</label>
+            <input type="number" step="0.1" id="input-bmssoc" placeholder="50.0" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-400 text-[10px] uppercase font-mono mb-1">Display SoC (%)</label>
+            <input type="number" step="0.5" id="input-dispsoc" placeholder="52.0" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-white font-mono">
+          </div>
+        </div>
+
+        <!-- Charging counters -->
+        <div class="bg-slate-950/70 p-3 rounded-xl border border-slate-800 space-y-2">
+          <span class="text-[11px] font-bold text-cyan-300 block">Accumulated Charging Counters</span>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] text-slate-400 uppercase">Normal AC kWh</label>
+              <input type="number" id="input-ackwh" placeholder="9950" 
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono text-xs">
+            </div>
+            <div>
+              <label class="text-[10px] text-slate-400 uppercase">AC Sessions</label>
+              <input type="number" id="input-acses" placeholder="992" 
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono text-xs">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] text-amber-400 uppercase">Quick DCFC kWh</label>
+              <input type="number" id="input-dckwh" placeholder="549" 
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono text-xs">
+            </div>
+            <div>
+              <label class="text-[10px] text-amber-400 uppercase">DC Sessions</label>
+              <input type="number" id="input-dcses" placeholder="21" 
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg p-1.5 text-white font-mono text-xs">
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Cell Voltage Deviation</label>
+            <input type="number" step="0.01" id="input-celldev" value="0.00" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-medium mb-1">Pack Temp (°C)</label>
+            <input type="text" id="input-temp" placeholder="e.g. 10–12°C" 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-medium mb-1">Notes / Context</label>
+          <input type="text" id="input-notes" placeholder="Resting overnight charge in garage..." 
+            class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white">
+        </div>
+
+        <div class="pt-2 flex justify-end gap-2">
+          <button type="button" id="btn-cancel-add-modal" class="px-3.5 py-2 rounded-xl bg-slate-800 text-slate-300 font-medium active:scale-95 transition">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-bold active:scale-95 transition flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i>
+            <span>Save Milestone</span>
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- MODAL 2: INSTALL APP INSTRUCTIONS (iOS & Android) -->
+  <div id="modal-install" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-slate-900 border-t sm:border border-slate-700 w-full max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+      
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+            <i data-lucide="download" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Install Kona Tracker</h3>
+            <p class="text-[10px] text-slate-400">Launch from your phone home screen</p>
+          </div>
+        </div>
+        <button id="btn-close-install" class="p-1 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- OS Tabs -->
+      <div class="flex rounded-xl bg-slate-950 p-1 border border-slate-800">
+        <button id="tab-os-ios" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-cyan-500 text-slate-950 transition flex items-center justify-center gap-1">
+          <i data-lucide="apple" class="w-3.5 h-3.5"></i>
+          <span>iPhone (Safari)</span>
+        </button>
+        <button id="tab-os-android" class="flex-1 py-1.5 text-xs font-medium text-slate-400 hover:text-white rounded-lg transition flex items-center justify-center gap-1">
+          <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+          <span>Android (Chrome)</span>
+        </button>
+      </div>
+
+      <!-- iOS Instructions -->
+      <div id="inst-ios" class="space-y-3 text-xs text-slate-300">
+        <div class="flex items-start gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+          <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold font-mono shrink-0">1</div>
+          <p>Open this page in <strong class="text-white">Safari</strong> on your iPhone.</p>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+          <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold font-mono shrink-0">2</div>
+          <p>Tap the <strong class="text-cyan-400">Share</strong> button <i data-lucide="share" class="w-3.5 h-3.5 inline mx-1 text-cyan-400"></i> in the bottom menu bar.</p>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+          <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold font-mono shrink-0">3</div>
+          <p>Scroll down and select <strong class="text-white">Add to Home Screen</strong> <i data-lucide="plus-square" class="w-3.5 h-3.5 inline mx-1 text-emerald-400"></i>.</p>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+          <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold font-mono shrink-0">4</div>
+          <p>Tap <strong class="text-cyan-400">Add</strong> at top right. The Kona Battery icon will now appear on your home screen!</p>
+        </div>
+      </div>
+
+      <!-- Android Instructions -->
+      <div id="inst-android" class="hidden space-y-3 text-xs text-slate-300">
+        <div id="android-prompt-box" class="hidden p-3 rounded-xl bg-cyan-950/50 border border-cyan-800/80 text-center space-y-2">
+          <p class="font-bold text-white text-xs">Direct 1-Tap Installation Available!</p>
+          <button id="btn-trigger-android-install" class="w-full py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-bold active:scale-95 transition">
+            Install to Android Now
+          </button>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+          <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold font-mono shrink-0">1</div>
+          <p>Open this page in <strong class="text-white">Chrome</strong> on your Android phone.</p>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+          <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold font-mono shrink-0">2</div>
+          <p>Tap the <strong class="text-white">3 dots</strong> (Menu) at top right.</p>
+        </div>
+        <div class="flex items-start gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+          <div class="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold font-mono shrink-0">3</div>
+          <p>Select <strong class="text-cyan-400">Install app</strong> or <strong class="text-cyan-400">Add to Home screen</strong>.</p>
+        </div>
+      </div>
+
+      <button id="btn-close-install-bottom" class="w-full py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs active:scale-95 transition">
+        Done
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 3: SETTINGS & BACKUP/RESTORE -->
+  <div id="modal-settings" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-slate-900 border-t sm:border border-slate-700 w-full max-w-sm rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <i data-lucide="database" class="w-4 h-4 text-cyan-400"></i>
+          <span>Data Storage & Backup</span>
+        </h3>
+        <button id="btn-close-settings" class="p-1 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2 text-xs">
+        <button id="btn-export-json" class="w-full p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium flex items-center justify-between border border-slate-700 active:scale-95 transition">
+          <span class="flex items-center gap-2"><i data-lucide="download" class="w-4 h-4 text-cyan-400"></i> Backup Database (JSON)</span>
+          <span class="text-[10px] text-slate-400 font-mono">.json</span>
+        </button>
+
+        <button id="btn-export-csv" class="w-full p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium flex items-center justify-between border border-slate-700 active:scale-95 transition">
+          <span class="flex items-center gap-2"><i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-400"></i> Export to Excel / CSV</span>
+          <span class="text-[10px] text-slate-400 font-mono">.csv</span>
+        </button>
+
+        <label class="w-full p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium flex items-center justify-between border border-slate-700 cursor-pointer active:scale-95 transition">
+          <span class="flex items-center gap-2"><i data-lucide="upload" class="w-4 h-4 text-purple-400"></i> Restore from JSON</span>
+          <input type="file" id="input-import-json" accept=".json" class="hidden">
+          <span class="text-[10px] text-slate-400 font-mono">Upload</span>
+        </label>
+
+        <button id="btn-reset-factory" class="w-full p-2.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/40 text-rose-300 font-medium flex items-center justify-between border border-rose-900/50 active:scale-95 transition">
+          <span class="flex items-center gap-2"><i data-lucide="rotate-ccw" class="w-4 h-4 text-rose-400"></i> Reset to Factory 9 Logs</span>
+          <span class="text-[10px] text-rose-400 font-mono">Reset</span>
+        </button>
+      </div>
+
+      <div class="pt-2 text-[10px] text-slate-400 text-center leading-normal">
+        All telemetry data is stored offline inside your phone's browser cache.
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: BUFFER DEEP DIVE -->
+  <div id="modal-buffer-explainer" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-slate-900 border-t sm:border border-slate-700 w-full max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl p-5 space-y-3.5 max-h-[85vh] overflow-y-auto text-xs text-slate-300">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <i data-lucide="shield-alert" class="w-4 h-4 text-cyan-400"></i>
+          <span>The 9.2 kWh Illusion Explained</span>
+        </h3>
+        <button id="btn-close-buffer-modal" class="p-1 text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <p class="leading-relaxed">
+        Your 2020 Kona Electric was built with <strong class="text-white">~67.5 kWh Gross</strong> physical capacity and <strong class="text-emerald-400">64.0 kWh Usable</strong> driving capacity.
+      </p>
+
+      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1.5 font-mono text-[11px]">
+        <div class="text-cyan-400 font-bold">Factory Overhead Buffer: ~3.5 kWh</div>
+        <p class="text-slate-400 font-sans">
+          The top 5.5% and bottom 3% are locked by Hyundai to stop cell charging at 4.16V (instead of 4.25V). This prevents cathode cracking and gave you 176,874 km of life!
+        </p>
+      </div>
+
+      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1 text-[11px]">
+        <div class="text-rose-400 font-bold">Why 9.2 kWh is not degraded range:</div>
+        <p class="leading-relaxed">
+          Subtracting current <strong class="text-white">58.30 kWh</strong> from <strong class="text-white">67.50 kWh gross</strong> lumps together the <strong class="text-amber-400">3.5 kWh factory reserve</strong> (which you never had access to) with your actual <strong class="text-cyan-300">5.70 kWh usable wear</strong>.
+        </p>
+      </div>
+
+      <button id="btn-close-buffer-done" class="w-full py-2 rounded-xl bg-slate-800 text-white font-bold active:scale-95 transition">
+        Understood
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 5: CUSTOM CONFIRMATION (NO confirm()) -->
+  <div id="modal-confirm" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-xs rounded-2xl shadow-2xl p-4 text-center space-y-3">
+      <div class="w-10 h-10 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <h4 class="text-sm font-bold text-white" id="confirm-title">Are you sure?</h4>
+        <p class="text-xs text-slate-400 mt-1" id="confirm-msg">This action cannot be undone.</p>
+      </div>
+      <div class="flex justify-center gap-2 pt-1">
+        <button id="btn-confirm-cancel" class="flex-1 py-1.5 text-xs font-semibold rounded-xl bg-slate-800 text-slate-300">Cancel</button>
+        <button id="btn-confirm-proceed" class="flex-1 py-1.5 text-xs font-bold rounded-xl bg-rose-600 text-white">Proceed</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING TOAST NOTIFICATION CONTAINER -->
+  <div id="toast-wrap" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-11/12 max-w-sm pointer-events-none space-y-2"></div>
+
+  <!-- ==================== JAVASCRIPT APPLICATION CODE ==================== -->
+  <script>
+    // --- 1. REGISTER PROGRESSIVE WEB APP (PWA) MANIFEST & SERVICE WORKER INLINE ---
+    (function registerPWA() {
+      try {
+        // Construct Web App Manifest
+        const pwaManifest = {
+          name: "Kona EV Battery Tracker",
+          short_name: "Kona Battery",
+          description: "2020 Hyundai Kona Electric Ultimate OBD2 Battery Degradation & Telemetry Tracker",
+          start_url: window.location.href,
+          display: "standalone",
+          background_color: "#080d1a",
+          theme_color: "#080d1a",
+          orientation: "portrait-primary",
+          icons: [
+            {
+              src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192' fill='none'%3E%3Crect width='192' height='192' rx='40' fill='%23080d1a'/%3E%3Crect x='10' y='10' width='172' height='172' rx='32' stroke='%2300f2fe' stroke-width='4' stroke-opacity='0.4'/%3E%3Cpath d='M96 28L128 84H102L116 164L64 104H90L96 28Z' fill='%2300f2fe'/%3E%3Cpath d='M50 144C63 156 80 162 96 162C132.45 162 162 132.45 162 96C162 76 153 58 138 46' stroke='%2310b981' stroke-width='8' stroke-linecap='round' stroke-dasharray='10 6'/%3E%3C/svg%3E",
+              sizes: "192x192 512x512",
+              type: "image/svg+xml",
+              purpose: "any maskable"
+            }
+          ]
+        };
+
+        const manifestBlob = new Blob([JSON.stringify(pwaManifest)], { type: 'application/manifest+json' });
+        const manifestURL = URL.createObjectURL(manifestBlob);
+        const linkElem = document.createElement('link');
+        linkElem.rel = 'manifest';
+        linkElem.href = manifestURL;
+        document.head.appendChild(linkElem);
+
+        // Service Worker for offline capability
+        if ('serviceWorker' in navigator) {
+          const swCode = `
+            const CACHE_NAME = 'kona-battery-pwa-v1';
+            self.addEventListener('install', (e) => {
+              self.skipWaiting();
+            });
+            self.addEventListener('activate', (e) => {
+              e.waitUntil(clients.claim());
+            });
+            self.addEventListener('fetch', (e) => {
+              e.respondWith(
+                fetch(e.request).catch(() => caches.match(e.request))
+              );
+            });
+          `;
+          const swBlob = new Blob([swCode], { type: 'application/javascript' });
+          const swUrl = URL.createObjectURL(swBlob);
+          navigator.serviceWorker.register(swUrl).catch(err => {
+            // Note: In sandboxed iframes, service workers might be blocked, gracefully continue
+            console.log('SW Registration Note:', err);
+          });
+        }
+      } catch (err) {
+        console.log('PWA Init Handled:', err);
+      }
+    })();
+
+    // --- 2. PRE-LOADED 9 TELEMETRY MILESTONES ---
+    const FACTORY_LOGS = [
+      { id: 1, title: "Log 1 - Baseline", date: "2026-05-29", odometer: 163569, soh: 94.7, usableKwh: 60.61, runtimeHours: 5232.25, bmsSoc: 90.0, dispSoc: 69.0, acKwh: 7398, acSessions: 539, dcKwh: 533, dcSessions: 20, cellDev: 0.0, temp: "32–33°C", notes: "Summer baseline snapshot" },
+      { id: 2, title: "Log 2 - First Read", date: "2026-06-10", odometer: 164675, soh: 94.4, usableKwh: 60.42, runtimeHours: 5391.94, bmsSoc: 68.0, dispSoc: 70.0, acKwh: 7576, acSessions: 559, dcKwh: 533, dcSessions: 20, cellDev: 0.0, temp: "31–33°C", notes: "Perfect 0V cell balance" },
+      { id: 3, title: "Log 3 - 169k Service", date: "2026-07-22", odometer: 169253, soh: 94.1, usableKwh: 60.22, runtimeHours: 6109.82, bmsSoc: 50.5, dispSoc: 52.0, acKwh: 8402, acSessions: 698, dcKwh: 533, dcSessions: 20, cellDev: 0.0, temp: "29–31°C", notes: "Highway cruising" },
+      { id: 4, title: "Log 4 - 170k Read", date: "2026-08-15", odometer: 170824, soh: 93.5, usableKwh: 59.84, runtimeHours: 6381.58, bmsSoc: 76.5, dispSoc: null, acKwh: 8716, acSessions: 752, dcKwh: 533, dcSessions: 20, cellDev: 0.0, temp: "Summer", notes: "Mid-August telemetry" },
+      { id: 5, title: "Log 5 - Autumn Read", date: "2026-09-25", odometer: 173747, soh: 92.2, usableKwh: 59.01, runtimeHours: 6899.59, bmsSoc: 90.0, dispSoc: null, acKwh: 9253, acSessions: 884, dcKwh: 549, dcSessions: 21, cellDev: 0.0, temp: "Autumn", notes: "+1 DCFC session added" },
+      { id: 6, title: "Log 6 - October Read", date: "2026-10-09", odometer: 174254, soh: 92.1, usableKwh: 58.94, runtimeHours: 6979.35, bmsSoc: 60.5, dispSoc: 64.0, acKwh: 9324, acSessions: 888, dcKwh: 549, dcSessions: 21, cellDev: 0.0, temp: "15°C", notes: "Shallow 50% cycling" },
+      { id: 7, title: "Log 7 - Full Charge", date: "2026-10-12", odometer: 174300, soh: 92.0, usableKwh: 58.88, runtimeHours: 6985.00, bmsSoc: 96.5, dispSoc: 100.0, acKwh: 9325, acSessions: 888, dcKwh: 549, dcSessions: 21, cellDev: 0.0, temp: "14°C", notes: "8% to 100% deep calibration cycle" },
+      { id: 8, title: "Log 8 - Autumn L2", date: "2026-10-14", odometer: 175039, soh: 91.8, usableKwh: 58.75, runtimeHours: 7101.00, bmsSoc: 50.0, dispSoc: 51.5, acKwh: 9482, acSessions: 907, dcKwh: 549, dcSessions: 21, cellDev: 0.0, temp: "18–20°C", notes: "Level 2 charging active" },
+      { id: 9, title: "Log 9 - Cold Full Charge", date: "2026-11-15", odometer: 176874, soh: 91.1, usableKwh: 58.30, runtimeHours: 7469.84, bmsSoc: 94.5, dispSoc: 100.0, acKwh: 9903, acSessions: 985, dcKwh: 549, dcSessions: 21, cellDev: 0.0, temp: "9–12°C", notes: "Resting 100% charge. Cold autumn calibration." }
+    ];
+
+    // --- APPLICATION STATE ---
+    let logs = [];
+    let activeXAxis = 'odometer'; // 'odometer' | 'date' | 'hours'
+    let chartSoh = null;
+    let chartCharging = null;
+    let calcClimate = 'normal'; // 'eco' | 'normal' | 'off'
+    let deferredPrompt = null;
+
+    // --- HAPTIC FEEDBACK HELPER ---
+    function triggerHaptic(duration = 10) {
+      if ('vibrate' in navigator) {
+        try { navigator.vibrate(duration); } catch(e){}
+      }
+    }
+
+    // --- LOCAL STORAGE DATA SYNC ---
+    function loadLogs() {
+      const stored = localStorage.getItem('kona_mobile_logs_v1');
+      if (stored) {
+        try {
+          logs = JSON.parse(stored);
+        } catch (e) {
+          logs = [...FACTORY_LOGS];
+        }
+      } else {
+        logs = [...FACTORY_LOGS];
+        saveLogs();
+      }
+      sortLogs();
+    }
+
+    function saveLogs() {
+      localStorage.setItem('kona_mobile_logs_v1', JSON.stringify(logs));
+    }
+
+    function sortLogs() {
+      logs.sort((a, b) => a.odometer - b.odometer);
+    }
+
+    // --- UI UPDATERS (DASHBOARD & STATS) ---
+    function updateDashboard() {
+      if (!logs.length) return;
+      const latest = logs[logs.length - 1];
+      const baseline = logs[0];
+
+      // SOH & Usable
+      document.getElementById('dash-soh').textContent = latest.soh.toFixed(1);
+      const usable = (64.0 * (latest.soh / 100)).toFixed(2);
+      document.getElementById('dash-usable').textContent = `${usable} kWh`;
+
+      const wearPct = (100 - latest.soh).toFixed(1);
+      const wearKwh = (64.0 - usable).toFixed(2);
+      document.getElementById('dash-wear').textContent = `-${wearPct}%`;
+      document.getElementById('dash-loss-kwh').textContent = `-${wearKwh} kWh`;
+
+      // Odometer & Tracked km
+      document.getElementById('dash-odometer').innerHTML = `${Number(latest.odometer).toLocaleString()} <span class="text-xs font-normal text-slate-400">km</span>`;
+      const trackedDelta = latest.odometer - baseline.odometer;
+      document.getElementById('dash-tracked-km').textContent = `+${Number(trackedDelta).toLocaleString()} km logged`;
+
+      // Cell Deviation
+      document.getElementById('dash-celldev').textContent = `${Number(latest.cellDev || 0).toFixed(2)} V`;
+
+      // DCFC
+      const totalKwh = (latest.acKwh || 0) + (latest.dcKwh || 0);
+      const dcfcPct = totalKwh > 0 ? ((latest.dcKwh / totalKwh) * 100).toFixed(2) : "0.00";
+      document.getElementById('dash-dcfc-pct').textContent = `${dcfcPct}%`;
+      document.getElementById('dash-dcfc-sub').textContent = `${latest.dcSessions || 0} DC / ${latest.acSessions || 0} AC`;
+
+      // Degradation Rate per 10,000 km
+      const rate = ((100 - latest.soh) / (latest.odometer / 10000)).toFixed(2);
+      document.getElementById('dash-deg-rate').textContent = `${rate}%`;
+
+      // Date Tag
+      document.getElementById('dash-last-date').textContent = latest.title.split(' - ')[0] || 'Latest';
+
+      // Gross vs Usable Bar
+      const grossKwh = (67.5 * (latest.soh / 100)).toFixed(2);
+      const bufferKwh = (grossKwh - usable).toFixed(2);
+      const grossLoss = (67.5 - grossKwh).toFixed(2);
+
+      document.getElementById('dash-bar-usable').style.width = `${(usable / 67.5) * 100}%`;
+      document.getElementById('dash-bar-usable').textContent = `${usable} kWh Usable`;
+      document.getElementById('dash-bar-buffer').style.width = `${(bufferKwh / 67.5) * 100}%`;
+      document.getElementById('dash-bar-buffer').textContent = `${bufferKwh}k`;
+      document.getElementById('dash-bar-wear').style.width = `${(grossLoss / 67.5) * 100}%`;
+      document.getElementById('dash-bar-wear').textContent = `${grossLoss}k`;
+
+      // Recent Log Shortcut
+      document.getElementById('dash-recent-title').textContent = `${latest.title} (${Number(latest.odometer).toLocaleString()} km)`;
+      document.getElementById('dash-recent-notes').textContent = latest.notes || 'OBD2 live snapshot recorded';
+
+      // Trend view helpers
+      document.getElementById('trend-ac-kwh').textContent = `${Number(latest.acKwh || 0).toLocaleString()} kWh (${latest.acSessions || 0} ses)`;
+      document.getElementById('trend-dc-kwh').textContent = `${Number(latest.dcKwh || 0).toLocaleString()} kWh (${latest.dcSessions || 0} ses)`;
+      document.getElementById('calc-curr-usable').textContent = `${usable} kWh`;
+
+      // Estimated km to 80% warranty
+      if (rate > 0) {
+        const remainingTo80 = latest.soh - 80.0;
+        const kmTo80 = (remainingTo80 / (rate / 10000));
+        const totalKm = Math.round(latest.odometer + kmTo80);
+        document.getElementById('trend-80k').textContent = `~${Number(totalKm).toLocaleString()} km`;
+      }
+    }
+
+    // --- CHART: SOH DEGRADATION CURVE ---
+    function renderSohChart() {
+      const canvas = document.getElementById('pwa-chart-soh');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (chartSoh) chartSoh.destroy();
+
+      const labels = logs.map(l => {
+        if (activeXAxis === 'date') return l.date.slice(5);
+        if (activeXAxis === 'hours') return `${Math.round(l.runtimeHours || 0)}h`;
+        return `${Math.round(l.odometer / 1000)}k`;
+      });
+
+      const sohData = logs.map(l => l.soh);
+
+      // Typical EV Fleet Benchmark line (~0.58%/10k km)
+      const fleetData = logs.map(l => +(100 - ((l.odometer / 10000) * 0.58)).toFixed(2));
+
+      const grad = ctx.createLinearGradient(0, 0, 0, 260);
+      grad.addColorStop(0, 'rgba(0, 242, 254, 0.35)');
+      grad.addColorStop(1, 'rgba(0, 242, 254, 0.0)');
+
+      chartSoh = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Your Kona BMS SoH',
+              data: sohData,
+              borderColor: '#00f2fe',
+              backgroundColor: grad,
+              borderWidth: 3,
+              pointBackgroundColor: '#00f2fe',
+              pointBorderColor: '#080d1a',
+              pointBorderWidth: 2,
+              pointRadius: 4,
+              fill: true,
+              tension: 0.2
+            },
+            {
+              label: 'Fleet Avg (0.58%/10k)',
+              data: fleetData,
+              borderColor: '#475569',
+              borderWidth: 1.5,
+              borderDash: [4, 4],
+              pointRadius: 0,
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { color: '#94a3b8', font: { size: 10, family: 'Inter' }, boxWidth: 10 }
+            },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              borderColor: '#334155',
+              borderWidth: 1,
+              titleColor: '#00f2fe',
+              callbacks: {
+                label: (c) => ` ${c.dataset.label}: ${c.parsed.y.toFixed(1)}%`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#64748b', font: { size: 9, family: 'JetBrains Mono' } }
+            },
+            y: {
+              min: 88,
+              max: 96,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#64748b', font: { size: 9, family: 'JetBrains Mono' }, callback: v => `${v}%` }
+            }
+          }
+        }
+      });
+    }
+
+    // --- CHART: CHARGING DOUGHNUT ---
+    function renderChargingChart() {
+      const canvas = document.getElementById('pwa-chart-charging');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (chartCharging) chartCharging.destroy();
+
+      const latest = logs[logs.length - 1] || {};
+      const ac = latest.acKwh || 9903;
+      const dc = latest.dcKwh || 549;
+
+      chartCharging = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Normal Level 2 AC', 'DC Fast Charging'],
+          datasets: [{
+            data: [ac, dc],
+            backgroundColor: ['#00f2fe', '#f59e0b'],
+            borderColor: '#080d1a',
+            borderWidth: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: '#94a3b8', font: { size: 10, family: 'Inter' }, boxWidth: 10 }
+            }
+          },
+          cutout: '70%'
+        }
+      });
+    }
+
+    // --- RANGE CALCULATOR (QUEBEC HIGHWAY & WINTER PHYSICS) ---
+    function updateRangeSimulator() {
+      const latest = logs[logs.length - 1];
+      const usableKwh = latest ? (64.0 * (latest.soh / 100)) : 58.30;
+
+      const temp = Number(document.getElementById('slider-temp').value);
+      const speed = Number(document.getElementById('slider-speed').value);
+      const socStart = Number(document.getElementById('calc-soc-start').value);
+      const socEnd = Number(document.getElementById('calc-soc-end').value);
+
+      document.getElementById('label-slider-temp').textContent = `${temp > 0 ? '+' : ''}${temp}°C`;
+      document.getElementById('label-slider-speed').textContent = `${speed} km/h`;
+
+      const socSpan = Math.max(0.05, (socStart - socEnd) / 100);
+      const dispatchableEnergy = usableKwh * socSpan;
+
+      // Aero and friction model
+      const speedRatio = speed / 110.0;
+      const tractionConsumption = 17.0 * (0.35 * speedRatio + 0.65 * (speedRatio * speedRatio));
+      const airDensityFactor = 1.0 + Math.max(0, (20 - temp) * 0.0035);
+
+      // Cold battery internal impedance
+      let coldImpedancePenalty = 1.0;
+      if (temp < 15) coldImpedancePenalty += (15 - temp) * 0.005;
+
+      // Cabin HVAC Load (Heat pump + PTC heater)
+      let hvacKw = 0.0;
+      if (calcClimate !== 'off') {
+        if (temp < 18) {
+          const deltaT = 21 - temp;
+          hvacKw = (temp >= 0) ? (0.7 + deltaT * 0.06) : (1.8 + Math.abs(temp) * 0.12);
+          if (calcClimate === 'eco') hvacKw *= 0.75;
+        } else if (temp > 24) {
+          hvacKw = 0.5 + ((temp - 24) * 0.08);
+          if (calcClimate === 'eco') hvacKw *= 0.8;
+        }
+      }
+
+      const hvacKwhPer100 = (hvacKw / speed) * 100;
+      const totalConsumption = (tractionConsumption * airDensityFactor * coldImpedancePenalty) + hvacKwhPer100;
+
+      const estimatedRange = Math.round((dispatchableEnergy / totalConsumption) * 100);
+      const summerRange = Math.round((dispatchableEnergy / 17.0) * 100);
+
+      document.getElementById('range-result-km').textContent = estimatedRange;
+      document.getElementById('range-summer-km').textContent = `${summerRange} km`;
+      document.getElementById('range-cons').textContent = `${totalConsumption.toFixed(1)} kWh/100km`;
+      document.getElementById('range-dispatch').textContent = `${dispatchableEnergy.toFixed(2)} kWh`;
+    }
+
+    // --- LOGBOOK RENDERING ---
+    function renderLogbook(query = '') {
+      const container = document.getElementById('logbook-list');
+      container.innerHTML = '';
+
+      const q = query.toLowerCase().trim();
+      const filtered = logs.filter(l => {
+        if (!q) return true;
+        return l.title.toLowerCase().includes(q) ||
+               l.date.includes(q) ||
+               String(l.odometer).includes(q) ||
+               (l.notes && l.notes.toLowerCase().includes(q));
+      });
+
+      if (!filtered.length) {
+        container.innerHTML = `<div class="p-6 text-center text-slate-500 text-xs">No matching telemetry logs found.</div>`;
+        return;
+      }
+
+      [...filtered].reverse().forEach(log => {
+        const item = document.createElement('div');
+        item.className = 'glass-card rounded-2xl p-3.5 border border-slate-800 space-y-2';
+        
+        const usable = (64.0 * (log.soh / 100)).toFixed(2);
+        const bmsSoc = log.bmsSoc != null ? `${log.bmsSoc}%` : '—';
+        const dispSoc = log.dispSoc != null ? `${log.dispSoc}%` : '—';
+
+        item.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800/60">${log.title}</span>
+              <span class="text-[11px] font-mono text-slate-400">${log.date}</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-sm font-black font-mono text-cyan-400">${log.soh.toFixed(1)}%</span>
+              <button class="btn-del-log text-slate-500 hover:text-rose-400 p-1 rounded transition" data-id="${log.id}">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 text-[11px] font-mono pt-1 border-t border-slate-800/60">
+            <div>
+              <span class="text-slate-400 text-[9px] block">Odometer</span>
+              <span class="text-white font-bold">${Number(log.odometer).toLocaleString()} km</span>
+            </div>
+            <div>
+              <span class="text-slate-400 text-[9px] block">Usable</span>
+              <span class="text-emerald-400 font-bold">${usable} kWh</span>
+            </div>
+            <div>
+              <span class="text-slate-400 text-[9px] block">BMS / Disp SoC</span>
+              <span class="text-slate-300">${bmsSoc} / ${dispSoc}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-1">
+            <span>AC: ${log.acKwh ? Number(log.acKwh).toLocaleString() + 'k' : '—'} | DC: ${log.dcKwh ? log.dcKwh + 'k' : '—'}</span>
+            <span class="text-emerald-400 font-semibold">Dev: ${log.cellDev || 0}V</span>
+          </div>
+
+          ${log.notes ? `<p class="text-[10px] text-slate-400 italic bg-slate-950/60 p-1.5 rounded-lg border border-slate-800/40">${log.notes}</p>` : ''}
+        `;
+
+        container.appendChild(item);
+      });
+
+      // Bind delete buttons
+      document.querySelectorAll('.btn-del-log').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const id = Number(e.currentTarget.getAttribute('data-id'));
+          openConfirm("Delete Log", "Are you sure you want to delete this milestone?", () => {
+            logs = logs.filter(l => l.id !== id);
+            saveLogs();
+            updateAll();
+            showToast("Log deleted", "info");
+          });
+        });
+      });
+
+      lucide.createIcons();
+    }
+
+    // --- REFRESH EVERYTHING ---
+    function updateAll() {
+      sortLogs();
+      updateDashboard();
+      renderSohChart();
+      renderChargingChart();
+      updateRangeSimulator();
+      renderLogbook(document.getElementById('logbook-search').value);
+    }
+
+    // --- CUSTOM MODALS & CONFIRMATION ---
+    let confirmCb = null;
+    function openConfirm(title, msg, onProceed) {
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-msg').textContent = msg;
+      confirmCb = onProceed;
+      document.getElementById('modal-confirm').classList.remove('hidden');
+    }
+    document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
+      document.getElementById('modal-confirm').classList.add('hidden');
+      confirmCb = null;
+    });
+    document.getElementById('btn-confirm-proceed').addEventListener('click', () => {
+      document.getElementById('modal-confirm').classList.add('hidden');
+      if (confirmCb) confirmCb();
+      confirmCb = null;
+    });
+
+    // Toast system
+    function showToast(msg, type = 'success') {
+      const wrap = document.getElementById('toast-wrap');
+      const toast = document.createElement('div');
+      const isErr = type === 'error';
+      const isInfo = type === 'info';
+      
+      let border = 'border-cyan-500/50 text-cyan-200';
+      if (isErr) border = 'border-rose-500/50 text-rose-200';
+      if (isInfo) border = 'border-blue-500/50 text-blue-200';
+
+      toast.className = `flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-slate-900/95 border ${border} shadow-2xl backdrop-blur-md text-xs font-semibold transform translate-y-[-10px] opacity-0 transition-all duration-300 pointer-events-auto`;
+      toast.innerHTML = `<i data-lucide="${isErr ? 'alert-circle' : isInfo ? 'info' : 'check-circle'}" class="w-4 h-4"></i> <span>${msg}</span>`;
+      wrap.appendChild(toast);
+      lucide.createIcons();
+
+      setTimeout(() => { toast.classList.remove('translate-y-[-10px]', 'opacity-0'); }, 10);
+      setTimeout(() => {
+        toast.classList.add('translate-y-[-10px]', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    // --- PWA INSTALLATION LOGIC & EVENT HANDLERS ---
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    if (isStandalone) {
+      const badge = document.getElementById('pwa-status-badge');
+      badge.textContent = 'Installed';
+      badge.className = 'text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/80 font-bold';
+    } else {
+      // Show install banner and header button
+      document.getElementById('install-banner').classList.remove('hidden');
+      document.getElementById('btn-header-install').classList.remove('hidden');
+    }
+
+    // Capture Android beforeinstallprompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('android-prompt-box').classList.remove('hidden');
+      document.getElementById('btn-banner-action').textContent = 'Install';
+    });
+
+    // Install Banner triggers modal
+    document.getElementById('btn-banner-action').addEventListener('click', () => {
+      triggerHaptic();
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(() => {
+          deferredPrompt = null;
+        });
+      } else {
+        openInstallModal();
+      }
+    });
+
+    document.getElementById('btn-banner-dismiss').addEventListener('click', () => {
+      document.getElementById('install-banner').classList.add('hidden');
+    });
+
+    document.getElementById('btn-header-install').addEventListener('click', () => {
+      triggerHaptic();
+      openInstallModal();
+    });
+
+    function openInstallModal() {
+      const modal = document.getElementById('modal-install');
+      modal.classList.remove('hidden');
+      if (isIOS) {
+        selectInstallTab('ios');
+      } else {
+        selectInstallTab('android');
+      }
+    }
+
+    function selectInstallTab(os) {
+      const tabIos = document.getElementById('tab-os-ios');
+      const tabAnd = document.getElementById('tab-os-android');
+      const instIos = document.getElementById('inst-ios');
+      const instAnd = document.getElementById('inst-android');
+
+      if (os === 'ios') {
+        tabIos.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg bg-cyan-500 text-slate-950 transition flex items-center justify-center gap-1';
+        tabAnd.className = 'flex-1 py-1.5 text-xs font-medium text-slate-400 hover:text-white rounded-lg transition flex items-center justify-center gap-1';
+        instIos.classList.remove('hidden');
+        instAnd.classList.add('hidden');
+      } else {
+        tabAnd.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg bg-cyan-500 text-slate-950 transition flex items-center justify-center gap-1';
+        tabIos.className = 'flex-1 py-1.5 text-xs font-medium text-slate-400 hover:text-white rounded-lg transition flex items-center justify-center gap-1';
+        instAnd.classList.remove('hidden');
+        instIos.classList.add('hidden');
+      }
+    }
+
+    document.getElementById('tab-os-ios').addEventListener('click', () => selectInstallTab('ios'));
+    document.getElementById('tab-os-android').addEventListener('click', () => selectInstallTab('android'));
+    document.getElementById('btn-close-install').addEventListener('click', () => document.getElementById('modal-install').classList.add('hidden'));
+    document.getElementById('btn-close-install-bottom').addEventListener('click', () => document.getElementById('modal-install').classList.add('hidden'));
+    document.getElementById('btn-trigger-android-install').addEventListener('click', () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(() => {
+          deferredPrompt = null;
+          document.getElementById('modal-install').classList.add('hidden');
+        });
+      }
+    });
+
+    // --- TAB SWITCHER (MOBILE BOTTOM BAR) ---
+    const navButtons = document.querySelectorAll('.nav-tab-btn');
+    const views = ['view-dashboard', 'view-trend', 'view-range', 'view-logbook'];
+
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        triggerHaptic(8);
+        const targetViewId = btn.getAttribute('data-tab');
+        
+        // Update nav styling
+        navButtons.forEach(b => {
+          b.classList.remove('active', 'text-cyan-400');
+          b.classList.add('text-slate-400');
+          b.querySelector('span').classList.remove('font-bold');
+        });
+        btn.classList.add('active', 'text-cyan-400');
+        btn.classList.remove('text-slate-400');
+        btn.querySelector('span').classList.add('font-bold');
+
+        // Toggle views
+        views.forEach(v => {
+          const el = document.getElementById(v);
+          if (v === targetViewId) {
+            el.classList.remove('hidden');
+          } else {
+            el.classList.add('hidden');
+          }
+        });
+
+        // Window scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Chart resize triggers on tab show
+        if (targetViewId === 'view-trend') {
+          setTimeout(() => {
+            renderSohChart();
+            renderChargingChart();
+          }, 50);
+        }
+      });
+    });
+
+    // Shortcut from dashboard to logbook
+    document.getElementById('dash-btn-view-logs').addEventListener('click', () => {
+      document.querySelector('[data-tab="view-logbook"]').click();
+    });
+
+    // --- ADD LOG MODAL ---
+    const addModal = document.getElementById('modal-add-log');
+    function openAddModal() {
+      triggerHaptic(12);
+      document.getElementById('input-date').value = new Date().toISOString().split('T')[0];
+      document.getElementById('input-title').value = `Log ${logs.length + 1} - New Read`;
+      addModal.classList.remove('hidden');
+    }
+
+    document.getElementById('nav-btn-add').addEventListener('click', openAddModal);
+    document.getElementById('btn-open-add-from-logbook').addEventListener('click', openAddModal);
+    document.getElementById('btn-close-add-modal').addEventListener('click', () => addModal.classList.add('hidden'));
+    document.getElementById('btn-cancel-add-modal').addEventListener('click', () => addModal.classList.add('hidden'));
+
+    document.getElementById('form-add-log').addEventListener('submit', (e) => {
+      e.preventDefault();
+      triggerHaptic(15);
+
+      const odo = Number(document.getElementById('input-odo').value);
+      const soh = Number(document.getElementById('input-soh').value);
+      const title = document.getElementById('input-title').value;
+      const date = document.getElementById('input-date').value;
+      const hours = document.getElementById('input-hours').value ? Number(document.getElementById('input-hours').value) : null;
+      const bmsSoc = document.getElementById('input-bmssoc').value ? Number(document.getElementById('input-bmssoc').value) : null;
+      const dispSoc = document.getElementById('input-dispsoc').value ? Number(document.getElementById('input-dispsoc').value) : null;
+      const acKwh = document.getElementById('input-ackwh').value ? Number(document.getElementById('input-ackwh').value) : null;
+      const acSessions = document.getElementById('input-acses').value ? Number(document.getElementById('input-acses').value) : null;
+      const dcKwh = document.getElementById('input-dckwh').value ? Number(document.getElementById('input-dckwh').value) : null;
+      const dcSessions = document.getElementById('input-dcses').value ? Number(document.getElementById('input-dcses').value) : null;
+      const cellDev = document.getElementById('input-celldev').value ? Number(document.getElementById('input-celldev').value) : 0.0;
+      const temp = document.getElementById('input-temp').value || '—';
+      const notes = document.getElementById('input-notes').value || '';
+
+      const newEntry = {
+        id: Date.now(),
+        title,
+        date,
+        odometer: odo,
+        soh,
+        usableKwh: +(64.0 * (soh / 100)).toFixed(2),
+        runtimeHours: hours,
+        bmsSoc,
+        dispSoc,
+        acKwh,
+        acSessions,
+        dcKwh,
+        dcSessions,
+        cellDev,
+        temp,
+        notes
+      };
+
+      logs.push(newEntry);
+      saveLogs();
+      updateAll();
+
+      addModal.classList.add('hidden');
+      document.getElementById('form-add-log').reset();
+      showToast(`Logged ${title} at ${Number(odo).toLocaleString()} km!`);
+    });
+
+    // --- SETTINGS, EXPORT & BACKUP MODAL ---
+    const settingsModal = document.getElementById('modal-settings');
+    document.getElementById('btn-open-settings').addEventListener('click', () => {
+      triggerHaptic();
+      settingsModal.classList.remove('hidden');
+    });
+    document.getElementById('btn-close-settings').addEventListener('click', () => settingsModal.classList.add('hidden'));
+
+    // Export JSON
+    document.getElementById('btn-export-json').addEventListener('click', () => {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(logs, null, 2));
+      const dl = document.createElement('a');
+      dl.setAttribute("href", dataStr);
+      dl.setAttribute("download", `kona_battery_backup_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(dl);
+      dl.click();
+      dl.remove();
+      showToast("Database backup downloaded", "info");
+    });
+
+    // Export CSV
+    document.getElementById('btn-export-csv').addEventListener('click', () => {
+      if (!logs.length) return;
+      const headers = ["Milestone", "Date", "Odometer", "SoH", "Usable_kWh", "BMS_SoC", "Disp_SoC", "AC_kWh", "AC_Sessions", "DC_kWh", "DC_Sessions", "Cell_Dev_V", "Temp", "Notes"];
+      const rows = logs.map(l => [
+        `"${l.title}"`, `"${l.date}"`, l.odometer, l.soh, (64.0 * (l.soh / 100)).toFixed(2),
+        l.bmsSoc ?? '', l.dispSoc ?? '', l.acKwh ?? '', l.acSessions ?? '', l.dcKwh ?? '', l.dcSessions ?? '',
+        l.cellDev ?? 0, `"${l.temp ?? ''}"`, `"${(l.notes ?? '').replace(/"/g, '""')}"`
+      ]);
+      const csv = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const dl = document.createElement('a');
+      dl.setAttribute("href", encodeURI(csv));
+      dl.setAttribute("download", `kona_telemetry_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(dl);
+      dl.click();
+      dl.remove();
+      showToast("CSV file exported", "info");
+    });
+
+    // Import JSON
+    document.getElementById('input-import-json').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const imported = JSON.parse(event.target.result);
+          if (Array.isArray(imported)) {
+            logs = imported;
+            saveLogs();
+            updateAll();
+            settingsModal.classList.add('hidden');
+            showToast("Database restored successfully!");
+          }
+        } catch (err) {
+          showToast("Invalid JSON file", "error");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Reset to Default
+    document.getElementById('btn-reset-factory').addEventListener('click', () => {
+      openConfirm("Reset Database", "Restore original 9 baseline milestones? Custom logs will be replaced.", () => {
+        logs = [...FACTORY_LOGS];
+        saveLogs();
+        updateAll();
+        settingsModal.classList.add('hidden');
+        showToast("Restored to factory 9 logs", "info");
+      });
+    });
+
+    // --- BUFFER EXPLAINER MODAL ---
+    const bufferModal = document.getElementById('modal-buffer-explainer');
+    document.getElementById('btn-quick-buffer-modal').addEventListener('click', () => {
+      triggerHaptic();
+      bufferModal.classList.remove('hidden');
+    });
+    document.getElementById('btn-close-buffer-modal').addEventListener('click', () => bufferModal.classList.add('hidden'));
+    document.getElementById('btn-close-buffer-done').addEventListener('click', () => bufferModal.classList.add('hidden'));
+
+    // --- X-AXIS TOGGLES ON TREND VIEW ---
+    const btnOdo = document.getElementById('pwa-toggle-odo');
+    const btnDate = document.getElementById('pwa-toggle-date');
+    const btnHours = document.getElementById('pwa-toggle-hours');
+
+    function setXAxis(axis) {
+      triggerHaptic();
+      activeXAxis = axis;
+      [btnOdo, btnDate, btnHours].forEach(b => {
+        b.className = 'px-2.5 py-1 text-[11px] rounded-lg font-medium text-slate-400 hover:text-white transition';
+      });
+      if (axis === 'odometer') btnOdo.className = 'px-2.5 py-1 text-[11px] rounded-lg font-bold bg-cyan-500 text-slate-950 transition';
+      if (axis === 'date') btnDate.className = 'px-2.5 py-1 text-[11px] rounded-lg font-bold bg-cyan-500 text-slate-950 transition';
+      if (axis === 'hours') btnHours.className = 'px-2.5 py-1 text-[11px] rounded-lg font-bold bg-cyan-500 text-slate-950 transition';
+      renderSohChart();
+    }
+    btnOdo.addEventListener('click', () => setXAxis('odometer'));
+    btnDate.addEventListener('click', () => setXAxis('date'));
+    btnHours.addEventListener('click', () => setXAxis('hours'));
+
+    // --- RANGE CALCULATOR LISTENERS ---
+    ['slider-temp', 'slider-speed', 'calc-soc-start', 'calc-soc-end'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        triggerHaptic(4);
+        updateRangeSimulator();
+      });
+    });
+
+    document.querySelectorAll('.btn-calc-climate').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        triggerHaptic(8);
+        document.querySelectorAll('.btn-calc-climate').forEach(b => {
+          b.className = 'btn-calc-climate py-1.5 px-2 rounded-xl text-xs font-medium border border-slate-700 bg-slate-900 text-slate-300';
+        });
+        const target = e.currentTarget;
+        target.className = 'btn-calc-climate active py-1.5 px-2 rounded-xl text-xs font-bold border border-cyan-500 bg-cyan-950 text-cyan-300';
+        calcClimate = target.getAttribute('data-calc-climate');
+        updateRangeSimulator();
+      });
+    });
+
+    // Logbook search
+    document.getElementById('logbook-search').addEventListener('input', (e) => {
+      renderLogbook(e.target.value);
+    });
+
+    // --- APP STARTUP ---
+    window.onload = function () {
+      loadLogs();
+      updateAll();
+      lucide.createIcons();
+    };
+  </script>
+</body>
+</html>
